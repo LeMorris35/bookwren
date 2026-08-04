@@ -42,22 +42,38 @@ workflows:
             # base64-encoded, clean PEM, or a PEM whose newlines got flattened
             # (the usual damage when pasting into a browser field).
             python3 - > /tmp/dist_cert_key.pem <<'PYEOF'
-          import base64, os, re, sys, textwrap
-          raw = os.environ["CERTIFICATE_PRIVATE_KEY"].strip()
+          import base64, binascii, os, re, sys, textwrap
+
+          raw = os.environ["CERTIFICATE_PRIVATE_KEY"].strip().strip('"').strip("'")
+
+          def emit(label, body):
+              print(f"-----BEGIN {label}-----")
+              print("\n".join(textwrap.wrap(body, 64)))
+              print(f"-----END {label}-----")
+
+          # 1) A PEM that still has its BEGIN/END markers, however mangled the
+          #    line breaks in between got.
+          m = re.search(r"-----BEGIN ([A-Z0-9 ]*PRIVATE KEY)-----(.*?)-----END \1-----", raw, re.S)
+          if m:
+              emit(m.group(1), re.sub(r"\s+", "", m.group(2)))
+              sys.exit(0)
+
+          # 2) base64 of a whole PEM file. Web forms love to inject line breaks,
+          #    so strip every scrap of whitespace before decoding.
+          compact = re.sub(r"\s+", "", raw)
           try:
-              decoded = base64.b64decode(raw, validate=True).decode()
-              if "PRIVATE KEY" in decoded:
-                  print(decoded.strip())
-                  sys.exit(0)
-          except Exception:
-              pass
-          m = re.search(r"-----BEGIN ([A-Z ]*PRIVATE KEY)-----(.*?)-----END \1-----", raw, re.S)
-          if not m:
-              sys.exit("CERTIFICATE_PRIVATE_KEY does not contain a PEM private key")
-          label, body = m.group(1), re.sub(r"\s+", "", m.group(2))
-          print(f"-----BEGIN {label}-----")
-          print("\n".join(textwrap.wrap(body, 64)))
-          print(f"-----END {label}-----")
+              decoded = base64.b64decode(compact + "=" * (-len(compact) % 4)).decode("utf-8", "ignore")
+          except (binascii.Error, ValueError):
+              decoded = ""
+          m = re.search(r"-----BEGIN ([A-Z0-9 ]*PRIVATE KEY)-----(.*?)-----END \1-----", decoded, re.S)
+          if m:
+              emit(m.group(1), re.sub(r"\s+", "", m.group(2)))
+              sys.exit(0)
+
+          sys.exit(
+              "CERTIFICATE_PRIVATE_KEY is not a PEM private key or base64 of one "
+              f"(got {len(raw)} chars starting with {raw[:24]!r})"
+          )
           PYEOF
             # Apple's tooling wants PKCS#1 ("BEGIN RSA PRIVATE KEY")
             if grep -q "BEGIN PRIVATE KEY" /tmp/dist_cert_key.pem; then
