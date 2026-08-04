@@ -25,6 +25,10 @@ workflows:
     scripts:
       - name: Install npm dependencies
         script: npm ci
+      - name: Generate app icon + splash screens
+        # Regenerates every size from assets/icon.png and assets/splash*.png,
+        # so the shipped icon can never drift from the brand art.
+        script: npx @capacitor/assets generate --ios
       - name: Sync Capacitor iOS
         # Installs CocoaPods and copies the native config/plugins.
         script: npx cap sync ios
