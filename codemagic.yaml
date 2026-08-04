@@ -38,8 +38,18 @@ workflows:
           # Instead reuse ONE key, stored in Codemagic as the secure env var
           # CERTIFICATE_PRIVATE_KEY — the same certificate gets reused forever.
           if [ -n "$CERTIFICATE_PRIVATE_KEY" ]; then
-            echo "Using the saved signing key"
-            printf '%s' "$CERTIFICATE_PRIVATE_KEY" > /tmp/dist_cert_key.pem
+            # Pasting a multi-line PEM into a web form tends to mangle the
+            # line breaks, so the key is stored base64-encoded (one safe
+            # line). Raw PEM still works if it survived the paste.
+            if printf '%s' "$CERTIFICATE_PRIVATE_KEY" | base64 --decode 2>/dev/null | grep -q "PRIVATE KEY"; then
+              echo "Using the saved signing key (base64)"
+              printf '%s' "$CERTIFICATE_PRIVATE_KEY" | base64 --decode > /tmp/dist_cert_key.pem
+            else
+              echo "Using the saved signing key (raw PEM)"
+              printf '%s' "$CERTIFICATE_PRIVATE_KEY" > /tmp/dist_cert_key.pem
+            fi
+            # Fail loudly here rather than deep inside the Apple API call
+            openssl rsa -in /tmp/dist_cert_key.pem -check -noout
           else
             echo "WARNING: no CERTIFICATE_PRIVATE_KEY set — creating a new certificate."
             echo "This burns one of your limited Apple certificate slots."
