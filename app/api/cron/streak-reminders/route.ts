@@ -11,13 +11,12 @@ export const GET = handler;
 export const POST = handler;
 
 async function handler(req: NextRequest) {
-  // Vercel signs cron requests; refuse anything else in production
+  // Fail closed: with no secret configured nobody can trigger this, so a
+  // missing env var can never turn into an open notification firehose.
   const secret = process.env.CRON_SECRET;
-  if (secret) {
-    const auth = req.headers.get("authorization");
-    if (auth !== `Bearer ${secret}`) {
-      return NextResponse.json({ error: "Not found" }, { status: 404 });
-    }
+  const auth = req.headers.get("authorization");
+  if (!secret || auth !== `Bearer ${secret}`) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
   const nowUtcMinutes = new Date().getUTCHours() * 60 + new Date().getUTCMinutes();
