@@ -47,7 +47,7 @@ export function FindCovers() {
   if (missing.length === 0) {
     return (
       <section className="rounded-2xl border border-line bg-surface p-5">
-        <h2 className="font-display text-xl font-semibold">Book covers</h2>
+        <h3 className="font-display text-lg font-semibold">Book covers</h3>
         <p className="mt-1 text-sm text-ink-muted">
           Every book in your library has a cover. 🎉
         </p>
