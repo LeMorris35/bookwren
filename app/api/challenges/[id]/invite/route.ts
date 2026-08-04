@@ -9,6 +9,7 @@ import {
   publicUser,
   requireUserId,
 } from "@/lib/server/helpers";
+import { notify } from "@/lib/server/apns";
 
 /**
  * Who can I invite? Returns my friends, each tagged with whether they're
@@ -98,6 +99,16 @@ export const POST = handler(
       where: { challengeId_toId: { challengeId, toId: toUserId } },
       create: { challengeId, fromId: userId, toId: toUserId },
       update: { status: "pending", fromId: userId },
+    });
+
+    const [me, challenge] = await Promise.all([
+      db.user.findUnique({ where: { id: userId } }),
+      db.challenge.findUnique({ where: { id: challengeId } }),
+    ]);
+    await notify(toUserId, "challenges", {
+      title: "You're invited to a challenge 🏆",
+      body: `${me?.displayName.split(" ")[0] ?? "A friend"} invited you to ${challenge?.name ?? "a reading challenge"}`,
+      path: "/challenges",
     });
 
     return NextResponse.json({ ok: true });

@@ -98,6 +98,53 @@ It takes roughly 8–15 minutes. Codemagic emails you on success or failure.
 
 ---
 
+## Push notifications — the one thing you must create
+
+The code is done. It needs an **APNs key** from Apple, which only you can make.
+
+### 1. Create the key (2 minutes)
+
+1. [developer.apple.com → Keys](https://developer.apple.com/account/resources/authkeys/list)
+2. Click **＋**
+3. Key Name: `BookWren Push`
+4. Tick **Apple Push Notifications service (APNs)**
+5. Continue → Register → **Download** the `.p8` file
+   ⚠️ Apple lets you download it **once**. Keep it somewhere safe.
+6. Note the **Key ID** (10 characters, also in the filename)
+7. Your **Team ID** is top-right of the developer portal, or under Membership
+
+### 2. Add three variables to Vercel
+
+Project → Settings → Environment Variables (Production):
+
+| Name | Value |
+|---|---|
+| `APNS_KEY_ID` | the 10-char Key ID |
+| `APNS_TEAM_ID` | your 10-char Team ID |
+| `APNS_PRIVATE_KEY` | the whole contents of the `.p8` file |
+
+Also add `CRON_SECRET` (any long random string) so only Vercel can trigger
+the streak reminders.
+
+Then redeploy — env vars only apply to new deployments.
+
+> The key parser is deliberately forgiving: pasted with or without the
+> BEGIN/END lines, with mangled newlines, it still works. Same lesson as the
+> signing key.
+
+### 3. What gets sent
+
+| When | Notification | Setting |
+|---|---|---|
+| A friend sends you a book | "Sarah sent you a book 📖" | Friends |
+| A friend messages you | their name + the message | Friends |
+| Friend request | "New friend request 🐦" | Friends |
+| Challenge invite | "You're invited to a challenge 🏆" | Challenges |
+| Streak at risk | "Your 12-day streak is waiting 🐦" | Streak (opt-in) |
+
+Readers control all of it in **Settings → Notifications**, and the streak
+nudge only fires if they had a streak yesterday and haven't read today.
+
 ## Before the public App Store (not needed for TestFlight)
 
 Apple can reject apps that are only a repackaged website

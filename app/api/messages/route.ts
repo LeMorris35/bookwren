@@ -9,6 +9,7 @@ import {
   publicUser,
   requireUserId,
 } from "@/lib/server/helpers";
+import { notify } from "@/lib/server/apns";
 
 /** Conversation list: one row per friend, newest activity first. */
 export const GET = handler(async () => {
@@ -106,6 +107,22 @@ export const POST = handler(async (req: NextRequest) => {
           : null,
       bookReview: book?.review ? String(book.review).slice(0, 2000) : null,
     },
+  });
+
+  // Tell them, if they're on a phone and haven't muted this
+  const me = await db.user.findUnique({ where: { id: userId } });
+  const name = me?.displayName.split(" ")[0] ?? "A friend";
+  const unread = await db.message.count({
+    where: { toId: toUserId, readAt: null },
+  });
+  await notify(toUserId, "social", {
+    title: book?.title ? `${name} sent you a book 📖` : name,
+    body: book?.title
+      ? `${book.title}${text ? ` — “${text}”` : ""}`
+      : text.slice(0, 140),
+    path: `/messages/${userId}`,
+    badge: unread,
+    threadId: userId,
   });
 
   return NextResponse.json({ message });

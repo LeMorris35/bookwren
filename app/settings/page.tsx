@@ -6,6 +6,7 @@ import { useTheme, type ThemePref } from "@/lib/theme";
 import { SITE } from "@/lib/site";
 import { RavenMark, WrenMark } from "@/components/WrenArt";
 import { EMPTY_DATA, type AppData } from "@/lib/types";
+import { NotificationSettings } from "@/components/NotificationSettings";
 
 const MODES: { value: ThemePref; label: string; hint: string }[] = [
   { value: "auto", label: "Auto", hint: "Wren by day, Raven 7 PM – 7 AM" },
@@ -95,6 +96,8 @@ export default function SettingsPage() {
           ))}
         </div>
       </section>
+
+      <NotificationSettings />
 
       {/* Goals */}
       <section className="rounded-2xl border border-line bg-surface p-5">

@@ -186,6 +186,35 @@ model UserReport {
   @@index([resolved])
 }
 
+/** An iPhone (or future Android device) that can receive push notifications. */
+model DeviceToken {
+  id        String   @id @default(cuid())
+  userId    String
+  /** The APNs device token. Unique — Apple reissues these per install. */
+  token     String   @unique
+  platform  String   @default("ios")
+  createdAt DateTime @default(now())
+  lastSeenAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+/** Per-reader notification settings. Absent row = the defaults below. */
+model NotificationPrefs {
+  userId     String  @id
+  /** Books sent, friend requests, messages. */
+  social     Boolean @default(true)
+  /** Challenge invites, someone passing you, challenge ending. */
+  challenges Boolean @default(true)
+  /** Evening nudge when a streak is at risk. Opt-in — nagging is rude. */
+  streak     Boolean @default(false)
+  /** Local hour (0–23) to send the streak nudge. */
+  streakHour Int     @default(20)
+  /** Minutes offset from UTC, so "8pm" means their 8pm. */
+  utcOffsetMinutes Int @default(0)
+  updatedAt  DateTime @updatedAt
+}
+
 /**
  * A direct message between two friends. A message can carry a book with it —
  * that's how recommendations, ratings, and reviews travel: you send a friend

@@ -8,6 +8,7 @@ import {
   publicUser,
   requireUserId,
 } from "@/lib/server/helpers";
+import { notify } from "@/lib/server/apns";
 
 /** Friend list plus incoming/outgoing requests. */
 export const GET = handler(async () => {
@@ -82,5 +83,13 @@ export const POST = handler(async (req: NextRequest) => {
   await db.friendship.create({
     data: { requesterId: userId, addresseeId: target.id, status: "pending" },
   });
+
+  const me = await db.user.findUnique({ where: { id: userId } });
+  await notify(target.id, "social", {
+    title: "New friend request 🐦",
+    body: `${me?.displayName ?? "Someone"} (@${me?.username}) wants to read together`,
+    path: "/friends",
+  });
+
   return NextResponse.json({ requested: true });
 });

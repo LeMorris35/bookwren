@@ -8,6 +8,7 @@ import { SITE } from "@/lib/site";
 import { Nav } from "@/components/Nav";
 import { Footer } from "@/components/Footer";
 import { NativeShell } from "@/components/NativeShell";
+import { PushRegistration } from "@/components/PushRegistration";
 
 // Alegreya Sans: a humanist sans designed for literature — warm, bookish,
 // nothing like a productivity tool.
@@ -68,6 +69,7 @@ export default function RootLayout({
           <ThemeProvider>
             <StoreProvider>
               <NativeShell />
+              <PushRegistration />
               <Nav />
               <main className="mx-auto w-full max-w-5xl flex-1 px-4 pb-24 pt-6 sm:px-6">
                 {children}
