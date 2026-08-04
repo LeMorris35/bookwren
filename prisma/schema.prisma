@@ -1,0 +1,228 @@
+// ShelfMark database — friends, challenges, recommendations, and synced
+// reading data for signed-in users. Local tracking still lives in the
+// browser; this is only what the social features need.
+//
+// Hosted on Prisma Postgres (see DEPLOY.md — claim the database to keep it!).
+// DATABASE_URL lives in .env locally and in Vercel env vars in production.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id          String   @id // Clerk user id
+  username    String   @unique
+  displayName String
+  avatarUrl   String?
+  createdAt   DateTime @default(now())
+
+  books               SyncedBook[]
+  sessions            SyncedSession[]
+  sentFriendships     Friendship[]           @relation("requester")
+  receivedFriendships Friendship[]           @relation("addressee")
+  createdChallenges   Challenge[]
+  challenges          ChallengeParticipant[]
+  sentRecs            Recommendation[]       @relation("sender")
+  receivedRecs        Recommendation[]       @relation("recipient")
+}
+
+model Friendship {
+  id          String   @id @default(cuid())
+  requesterId String
+  addresseeId String
+  status      String // "pending" | "accepted"
+  createdAt   DateTime @default(now())
+
+  requester User @relation("requester", fields: [requesterId], references: [id], onDelete: Cascade)
+  addressee User @relation("addressee", fields: [addresseeId], references: [id], onDelete: Cascade)
+
+  @@unique([requesterId, addresseeId])
+}
+
+// Mirror of a signed-in user's local library, pushed up by the sync endpoint.
+model SyncedBook {
+  id         String  @id @default(cuid())
+  userId     String
+  clientId   String // the book's id in the user's browser store
+  title      String
+  author     String
+  coverUrl   String?
+  format     String // physical | ebook | audiobook
+  status     String // want | reading | finished | dnf
+  finishedAt String? // ISO timestamp
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, clientId])
+}
+
+model SyncedSession {
+  id           String @id @default(cuid())
+  userId       String
+  clientId     String
+  bookClientId String
+  date         String // YYYY-MM-DD in the reader's local timezone
+  minutes      Int
+  pagesRead    Int    @default(0)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, clientId])
+  @@index([userId, date])
+}
+
+model Challenge {
+  id         String   @id @default(cuid())
+  creatorId  String
+  name       String
+  metric     String // "minutes" | "books"
+  target     Int
+  startDate  String // YYYY-MM-DD
+  endDate    String // YYYY-MM-DD inclusive
+  inviteCode String   @unique
+  createdAt  DateTime @default(now())
+
+  creator      User                   @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  participants ChallengeParticipant[]
+  invites      ChallengeInvite[]
+}
+
+/**
+ * A direct invite to a friend already on BookWren — no code to copy, it just
+ * shows up in their Challenges tab waiting for a tap. (The invite code stays
+ * for sharing with people outside the app.)
+ */
+model ChallengeInvite {
+  id          String   @id @default(cuid())
+  challengeId String
+  fromId      String
+  toId        String
+  /** pending | accepted | declined */
+  status      String   @default("pending")
+  createdAt   DateTime @default(now())
+
+  challenge Challenge @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+
+  @@unique([challengeId, toId])
+  @@index([toId, status])
+}
+
+model ChallengeParticipant {
+  id          String   @id @default(cuid())
+  challengeId String
+  userId      String
+  joinedAt    DateTime @default(now())
+
+  challenge Challenge @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([challengeId, userId])
+}
+
+/**
+ * Shared book catalog built by readers. Indie/self-published books aren't in
+ * Open Library, so when someone adds one by hand (with a cover photo) it lands
+ * here and every other reader can find it by search.
+ */
+model CommunityBook {
+  id         String   @id @default(cuid())
+  title      String
+  author     String
+  /** Lowercased "title|author" — the dedupe key. */
+  slug       String   @unique
+  /** Compressed data: URI of the reader-supplied cover. */
+  coverData  String?
+  totalPages Int?
+  /** Clerk id of the first contributor (accountability, not shown). */
+  addedBy    String
+  /** How many readers have this book — powers search ranking. */
+  addedCount Int      @default(1)
+  /** Hidden from search once reported enough, or by a moderator. */
+  hidden     Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  reports BookReport[]
+
+  @@index([title])
+  @@index([author])
+}
+
+/** A reader flagging a catalog entry: bad cover, wrong info, inappropriate. */
+model BookReport {
+  id         String   @id @default(cuid())
+  bookId     String
+  reporterId String
+  reason     String
+  note       String?
+  /** Set once a moderator has dealt with it. */
+  resolved   Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  book CommunityBook @relation(fields: [bookId], references: [id], onDelete: Cascade)
+
+  @@unique([bookId, reporterId])
+  @@index([resolved])
+}
+
+/** Reporting and/or blocking another reader. */
+model UserReport {
+  id         String   @id @default(cuid())
+  reporterId String
+  targetId   String
+  reason     String
+  note       String?
+  /** A block also severs the friendship and stops all future contact. */
+  blocked    Boolean  @default(false)
+  resolved   Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  @@unique([reporterId, targetId])
+  @@index([targetId])
+  @@index([resolved])
+}
+
+/**
+ * A direct message between two friends. A message can carry a book with it —
+ * that's how recommendations, ratings, and reviews travel: you send a friend
+ * a book, your stars, and what you thought, all in one chat bubble.
+ */
+model Message {
+  id     String  @id @default(cuid())
+  fromId String
+  toId   String
+  body   String?
+
+  // Optional attached book
+  bookTitle  String?
+  bookAuthor String?
+  bookCover  String?
+  /** The sender's rating out of 5, if they've finished it. */
+  bookRating Int?
+  /** The sender's written review, if they wrote one. */
+  bookReview String?
+
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([toId, readAt])
+  @@index([fromId, toId, createdAt])
+}
+
+model Recommendation {
+  id          String   @id @default(cuid())
+  senderId    String
+  recipientId String
+  title       String
+  author      String
+  coverUrl    String?
+  note        String?
+  createdAt   DateTime @default(now())
+
+  sender    User @relation("sender", fields: [senderId], references: [id], onDelete: Cascade)
+  recipient User @relation("recipient", fields: [recipientId], references: [id], onDelete: Cascade)
+}

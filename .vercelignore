@@ -1,0 +1,4 @@
+# Never ship local env files — production values live in Vercel env vars
+.env
+.env.production
+prisma/dev.db

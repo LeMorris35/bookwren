@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <title>BookWren</title>
+    <style>
+      :root {
+        --bg: #f6efe0;
+        --ink: #2e2119;
+        --muted: #6d5b4b;
+        --accent: #9c5a33;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #12101c;
+          --ink: #e8e4f4;
+          --muted: #c2bbd8;
+          --accent: #a78bfa;
+        }
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        min-height: 100dvh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 14px;
+        padding: 32px calc(24px + env(safe-area-inset-right)) 32px
+          calc(24px + env(safe-area-inset-left));
+        background: var(--bg);
+        color: var(--ink);
+        font-family: Georgia, "Times New Roman", serif;
+        text-align: center;
+        -webkit-user-select: none;
+        user-select: none;
+      }
+      h1 { margin: 0; font-size: 1.5rem; font-weight: 600; }
+      p { margin: 0; max-width: 22rem; color: var(--muted); line-height: 1.5; }
+      button {
+        margin-top: 8px;
+        padding: 12px 28px;
+        border: 0;
+        border-radius: 999px;
+        background: var(--accent);
+        color: var(--bg);
+        font: inherit;
+        font-weight: 600;
+      }
+    </style>
+  </head>
+  <body>
+    <svg width="86" height="86" viewBox="0 0 64 64" aria-hidden="true">
+      <g fill="var(--accent)">
+        <g transform="translate(9 1) scale(0.78)">
+          <polygon points="3,25.5 16,22.5 16,28" />
+          <circle cx="21.5" cy="25" r="9.5" />
+          <ellipse cx="34" cy="38" rx="15.5" ry="13" />
+          <rect x="45" y="13" width="6.5" height="27" rx="3.2"
+            transform="rotate(30 48 38)" />
+        </g>
+        <rect x="30" y="39" width="2.4" height="11" rx="1.2" />
+        <rect x="38" y="40" width="2.4" height="10" rx="1.2" />
+        <path d="M4 50 C 12 45.5 24 45.5 32 49 C 40 45.5 52 45.5 60 50 L 60 57
+          C 52 53.5 40 53.5 32 56.5 C 24 53.5 12 53.5 4 57 Z" />
+      </g>
+    </svg>
+    <h1>No connection</h1>
+    <p>
+      BookWren needs the internet to load. Your reading log is safe on this
+      device — it&rsquo;ll all be here when you&rsquo;re back online.
+    </p>
+    <button onclick="location.reload()">Try again</button>
+  </body>
+</html>

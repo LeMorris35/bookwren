@@ -1,0 +1,70 @@
+workflows:
+  ios-testflight:
+    name: BookWren iOS (TestFlight)
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+    integrations:
+      # Must match the exact Name of the App Store Connect API key in
+      # Codemagic Settings -> Integrations -> App Store Connect.
+      # Reuse the existing key or add a new one — the same key works for
+      # every app on your Apple account.
+      app_store_connect: LifeMetricOS ASC
+    environment:
+      node: 22
+      xcode: latest
+      vars:
+        BUNDLE_ID: "com.lammedia.bookwren"
+        # Apple's numeric app id from App Store Connect (App Information ->
+        # General Information -> Apple ID). Fill this in after creating the
+        # app; until then the build number just starts at 1.
+        APP_STORE_APP_ID: ""
+    scripts:
+      - name: Install npm dependencies
+        script: npm ci
+      - name: Sync Capacitor iOS
+        # Installs CocoaPods and copies the native config/plugins.
+        script: npx cap sync ios
+      - name: Create signing certificate + profile
+        script: |
+          set -ex
+          keychain initialize
+          # Generate a fresh private key, then create the distribution
+          # certificate from it (fixes "Cannot save ... without private key").
+          openssl genrsa -out /tmp/dist_cert_key.pem 2048
+          app-store-connect fetch-signing-files "$BUNDLE_ID" \
+            --type IOS_APP_STORE \
+            --certificate-key=@file:/tmp/dist_cert_key.pem \
+            --create \
+            --verbose
+          keychain add-certificates
+          xcode-project use-profiles --verbose
+      - name: Build IPA (auto-incremented build number)
+        script: |
+          set -e
+          if [ -n "$APP_STORE_APP_ID" ]; then
+            LATEST=$(app-store-connect get-latest-testflight-build-number "$APP_STORE_APP_ID" 2>/dev/null || echo 0)
+          else
+            LATEST=0
+          fi
+          BUILD_NUMBER=$(( LATEST + 1 ))
+          echo "Latest uploaded build was $LATEST; using build number $BUILD_NUMBER"
+          xcode-project build-ipa \
+            --project "ios/App/App.xcodeproj" \
+            --scheme "App" \
+            --archive-flags="CURRENT_PROJECT_VERSION=$BUILD_NUMBER"
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_*.log
+    publishing:
+      email:
+        recipients:
+          - levim713@outlook.com
+        notify:
+          success: true
+          failure: true
+      app_store_connect:
+        auth: integration
+        # Uploads the build — internal testers (you and Lydia) get it right
+        # away. External beta review is a separate, manual step in App Store
+        # Connect once the Test Information is filled in.
+        submit_to_testflight: false

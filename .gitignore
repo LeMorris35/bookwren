@@ -39,3 +39,17 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# local database
+prisma/dev.db
+prisma/dev.db-journal
+.vercel
+.env*
+
+# Capacitor — ios/ IS committed on purpose: Codemagic's cloud Mac builds
+# from it, which is how we ship to TestFlight without owning a Mac.
+.capacitor/
+ios/App/Pods/
+ios/App/App.xcworkspace/
+ios/DerivedData/
+ios/App/build/

@@ -1,26 +1,204 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/* ============================================================
+   BookWren design system — built from design/wren-dossier.md.
+   Two complete themes:
+   • Wren  (light) — a Carolina Wren's world: cream, russet, buff,
+     warm sidelight through a hedge.
+   • Raven (dark)  — the moonlit library: blue-black, candle brass,
+     feather-sheen violet.
+   The theme is stamped as data-theme on <html> before first paint.
+   ============================================================ */
+
+:root,
+:root[data-theme="wren"] {
+  /* plumage */
+  --background: #f6efe0;      /* Cream — chin, throat, eyebrow stripe */
+  --surface: #fdfaf3;         /* Shell — paper-white highlight */
+  --surface-deep: #f1e6d0;    /* Pale buff wash */
+  --ink: #2e2119;             /* Ink Brown — eyeline, bill */
+  --ink-muted: #6d5b4b;       /* warm secondary */
+  --ink-faint: #8b7b6a;       /* Twig */
+  --line: #e4d5bc;
+  --accent: #9c5a33;          /* Wren Russet — the brand color */
+  --accent-ink: #fdfaf3;
+  --accent-soft: #f3e3cc;
+  --cinnamon: #b0703c;
+  --buff: #d9a566;
+  --danger: #8e3b46;          /* Bramble Berry */
+
+  /* habitat (illustration + decoration only, never chrome) */
+  --foliage: #7a8b5a;         /* Moss */
+  --foliage-deep: #45543a;    /* Hedgerow */
+  --berry: #8e3b46;
+  --bark: #6b5847;
+  --barring: rgba(92, 58, 33, 0.16);
+
+  /* charts (CVD-validated trio) */
+  --chart-physical: #b45309;
+  --chart-ebook: #0d9488;
+  --chart-audiobook: #7c3aed;
+  --chart-track: #ebdfc8;
+
+  /* egg */
+  --egg-shell: #f4efe3;
+  --egg-speckle: #a75b3a;
+}
+
+:root[data-theme="raven"] {
+  /* black and purple — the raven's iridescent sheen, never flat #000 */
+  --background: #12101c;      /* purple-black */
+  --surface: #1a1727;
+  --surface-deep: #221d33;
+  --ink: #e8e4f4;             /* moonlight with a violet cast */
+  --ink-muted: #c2bbd8;
+  --ink-faint: #847c9e;
+  --line: #2c2642;
+  --accent: #a78bfa;          /* feather violet */
+  --accent-ink: #1c1233;
+  --accent-soft: #2a2347;
+  --cinnamon: #b0703c;
+  --buff: #d9a566;
+  --danger: #e0687f;
+
+  /* moonlit habitat: violet leaves, glowing berries */
+  --foliage: #6d4fd1;
+  --foliage-deep: #4c3a99;
+  --berry: #c084fc;
+  --bark: #4a4361;
+  --barring: rgba(232, 228, 244, 0.09);
+
+  --chart-physical: #d97706;
+  --chart-ebook: #0d9488;
+  --chart-audiobook: #8b5cf6;
+  --chart-track: #262138;
+
+  --egg-shell: #2a2540;
+  --egg-speckle: #c084fc;     /* speckles become starlight */
 }
 
 @theme inline {
   --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --color-surface: var(--surface);
+  --color-surface-deep: var(--surface-deep);
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-ink-faint: var(--ink-faint);
+  --color-line: var(--line);
+  --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-accent-soft: var(--accent-soft);
+  --color-cinnamon: var(--cinnamon);
+  --color-buff: var(--buff);
+  --color-danger: var(--danger);
+  --color-foliage: var(--foliage);
+  --color-bark: var(--bark);
+  --color-berry: var(--berry);
+  --color-chart-physical: var(--chart-physical);
+  --color-chart-ebook: var(--chart-ebook);
+  --color-chart-audiobook: var(--chart-audiobook);
+  --color-chart-track: var(--chart-track);
+  --font-sans: var(--font-alegreya-sans);
+  --font-display: var(--font-fraunces);
 }
 
 body {
   background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  color: var(--ink);
+  font-family: var(--font-alegreya-sans), Georgia, serif;
+  font-size: 1.0625rem; /* Alegreya Sans runs small; books deserve room */
+}
+
+/* Fraunces at full character: soft terminals + a little wonk.
+   This is what makes headings feel letterpress, not template. */
+.font-display {
+  font-family: var(--font-fraunces), Georgia, serif;
+  font-variation-settings: "SOFT" 70, "WONK" 1;
+  letter-spacing: -0.01em;
+}
+
+/* Feather-barring — the wren's wing pattern as a decorative strip */
+.barred {
+  background-image: repeating-linear-gradient(
+    90deg,
+    var(--barring) 0 10px,
+    transparent 10px 24px
+  );
+}
+
+/* The sunset: when the theme flips, everything drifts, nothing snaps */
+html.theme-shifting,
+html.theme-shifting *,
+html.theme-shifting *::before,
+html.theme-shifting *::after {
+  transition:
+    background-color 700ms ease,
+    border-color 700ms ease,
+    color 700ms ease,
+    fill 700ms ease,
+    stroke 700ms ease !important;
+}
+
+/* Clerk components live in our DOM — dress them in the house palette */
+.cl-card,
+.cl-modalContent > div {
+  background: var(--surface) !important;
+  color: var(--ink) !important;
+}
+.cl-headerTitle,
+.cl-headerSubtitle {
+  color: var(--ink) !important;
+  font-family: var(--font-fraunces), Georgia, serif;
+}
+.cl-formButtonPrimary {
+  background: var(--accent) !important;
+  color: var(--accent-ink) !important;
+}
+
+/* ── Native iOS app only (data-native is set by NativeShell) ────────
+   The web version keeps its normal browser behaviour. */
+
+/* Clear the notch and the home indicator */
+html[data-native="true"] header {
+  padding-top: env(safe-area-inset-top);
+}
+html[data-native="true"] nav.fixed {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+html[data-native="true"] body {
+  /* no rubber-band bounce past the content */
+  overscroll-behavior-y: none;
+}
+/* App-like touch: no long-press callouts or accidental text selection,
+   but never on things people actually need to select or type into. */
+html[data-native="true"] body {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+html[data-native="true"] input,
+html[data-native="true"] textarea,
+html[data-native="true"] [contenteditable],
+html[data-native="true"] p,
+html[data-native="true"] h1,
+html[data-native="true"] h2 {
+  -webkit-user-select: text;
+  user-select: text;
+}
+/* iOS zooms the page if an input's font-size is under 16px */
+html[data-native="true"] input,
+html[data-native="true"] textarea,
+html[data-native="true"] select {
+  font-size: 16px;
+}
+
+/* Number inputs: hide spinners, they're clumsy on mobile */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
 }
