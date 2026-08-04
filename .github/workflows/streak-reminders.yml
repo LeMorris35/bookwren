@@ -1,0 +1,26 @@
+name: Streak reminders
+
+# Runs hourly and asks BookWren to send streak nudges. The endpoint decides
+# who actually gets one — it only messages readers whose chosen hour it is
+# locally, who have a live streak, and who haven't read yet today.
+#
+# GitHub is used instead of Vercel Cron because the free Vercel plan allows
+# only one cron run per day, which can't cover every timezone's evening.
+
+on:
+  schedule:
+    - cron: "0 * * * *"
+  workflow_dispatch: # lets you trigger it by hand to test
+
+jobs:
+  remind:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger streak reminders
+        run: |
+          code=$(curl -sS -o /tmp/out.json -w "%{http_code}" \
+            -X POST "https://bookwren.app/api/cron/streak-reminders" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}")
+          echo "HTTP $code"
+          cat /tmp/out.json
+          test "$code" = "200"

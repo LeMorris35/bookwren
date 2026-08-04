@@ -1,8 +1,10 @@
 {
+  "$schema": "https://openapi.vercel.sh/vercel.json",
   "crons": [
     {
+      "//": "Vercel's free tier allows one cron run per day, which can't cover every reader's local evening. The hourly job lives in .github/workflows/streak-reminders.yml; this daily run is just a safety net.",
       "path": "/api/cron/streak-reminders",
-      "schedule": "0 * * * *"
+      "schedule": "0 1 * * *"
     }
   ]
 }
