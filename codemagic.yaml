@@ -27,9 +27,19 @@ workflows:
         script: |
           set -ex
           keychain initialize
-          # Generate a fresh private key, then create the distribution
-          # certificate from it (fixes "Cannot save ... without private key").
-          openssl genrsa -out /tmp/dist_cert_key.pem 2048
+          # Apple caps how many Distribution certificates an account may hold.
+          # Generating a throwaway key each build means we never match the
+          # existing certificate, so Apple eventually refuses with a 409.
+          # Instead reuse ONE key, stored in Codemagic as the secure env var
+          # CERTIFICATE_PRIVATE_KEY — the same certificate gets reused forever.
+          if [ -n "$CERTIFICATE_PRIVATE_KEY" ]; then
+            echo "Using the saved signing key"
+            printf '%s' "$CERTIFICATE_PRIVATE_KEY" > /tmp/dist_cert_key.pem
+          else
+            echo "WARNING: no CERTIFICATE_PRIVATE_KEY set — creating a new certificate."
+            echo "This burns one of your limited Apple certificate slots."
+            openssl genrsa -out /tmp/dist_cert_key.pem 2048
+          fi
           app-store-connect fetch-signing-files "$BUNDLE_ID" \
             --type IOS_APP_STORE \
             --certificate-key=@file:/tmp/dist_cert_key.pem \
