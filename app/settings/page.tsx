@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import Link from "next/link";
 import { useStore } from "@/lib/store";
 import { useTheme, type ThemePref } from "@/lib/theme";
 import { SITE } from "@/lib/site";
@@ -100,8 +101,6 @@ export default function SettingsPage() {
 
       <NotificationSettings />
 
-      <FindCovers />
-
       {/* Goals */}
       <section className="rounded-2xl border border-line bg-surface p-5">
         <h2 className="mb-4 font-display text-xl font-semibold">Goals</h2>
@@ -145,14 +144,45 @@ export default function SettingsPage() {
         </div>
       </section>
 
-      {/* Your data */}
-      <section className="rounded-2xl border border-line bg-surface p-5">
-        <h2 className="mb-1 font-display text-xl font-semibold">Your data</h2>
-        <p className="mb-4 text-sm text-ink-muted">
-          Your library lives in this browser. Download a backup any time, or
-          restore one onto a new device.
+      {/* ── Your library: every book-wrangling tool in one place ── */}
+      <div className="pt-2">
+        <h2 className="font-display text-xl font-semibold">Your library</h2>
+        <p className="mt-0.5 text-sm text-ink-muted">
+          {data.books.length} book{data.books.length === 1 ? "" : "s"} ·{" "}
+          {data.sessions.length} reading session
+          {data.sessions.length === 1 ? "" : "s"} · stored on this device
         </p>
-        <div className="flex gap-2">
+      </div>
+
+      {/* Import & repair */}
+      <section className="rounded-2xl border border-line bg-surface p-5">
+        <h3 className="font-display text-lg font-semibold">
+          Import from another app
+        </h3>
+        <p className="mt-1 text-sm text-ink-muted">
+          Bring your shelves over from Goodreads or The StoryGraph — ratings,
+          finish dates and all. Already imported once? Run it again with{" "}
+          <span className="font-medium">Repair books I already have</span> to
+          fix dates, series and covers without creating duplicates.
+        </p>
+        <Link
+          href="/import"
+          className="mt-3 inline-block rounded-full bg-accent px-5 py-2.5 text-sm font-semibold text-accent-ink"
+        >
+          Import or repair books
+        </Link>
+      </section>
+
+      <FindCovers />
+
+      {/* Backup */}
+      <section className="rounded-2xl border border-line bg-surface p-5">
+        <h3 className="font-display text-lg font-semibold">Backup</h3>
+        <p className="mt-1 text-sm text-ink-muted">
+          Your library lives in this browser, so it&apos;s worth keeping a
+          copy. Restoring replaces everything currently on this device.
+        </p>
+        <div className="mt-3 flex gap-2">
           <button
             type="button"
             onClick={exportBackup}

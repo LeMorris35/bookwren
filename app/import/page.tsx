@@ -139,7 +139,15 @@ export default function ImportPage() {
   return (
     <div className="mx-auto max-w-xl space-y-6">
       <div>
-        <h1 className="font-display text-2xl font-semibold">Import your library</h1>
+        <Link
+          href="/settings"
+          className="text-sm font-medium text-ink-muted hover:text-accent"
+        >
+          ← Settings
+        </Link>
+        <h1 className="mt-2 font-display text-2xl font-semibold">
+          Import your library
+        </h1>
         <p className="mt-1 text-sm text-ink-muted">
           Already track your reading somewhere else? Bring it all over — your
           shelves, ratings, and finish dates land on your timeline.
