@@ -5,6 +5,7 @@
 // format usually works without code changes.
 
 import type { Book, BookFormat, BookStatus } from "./types";
+import { parseTitle } from "./title-clean";
 
 /** RFC4180-ish parser: handles quoted fields, embedded commas and newlines. */
 export function parseCsv(text: string): string[][] {
@@ -243,9 +244,15 @@ export function parseLibraryCsv(text: string): ImportSummary {
     // library sorts by CSV row order instead.
     const addedOn = parseDate(get(col.dateAdded));
 
+    // "Fourth Wing (The Empyrean, #1)" → title + series, which both fixes
+    // cover lookup and fills the Series shelf in one go.
+    const parsed = parseTitle(title);
+
     books.push({
       book: {
-        title: title.slice(0, 300),
+        title: parsed.title.slice(0, 300),
+        seriesName: parsed.seriesName,
+        seriesNumber: parsed.seriesNumber,
         author: get(col.author).slice(0, 200) || "Unknown author",
         totalPages,
         format,

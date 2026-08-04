@@ -61,6 +61,8 @@ interface StoreValue {
   setSeriesPlanned: (name: string, plannedCount?: number) => void;
   /** Replace everything with a restored backup. */
   importData: (data: AppData) => void;
+  /** Update many books at once, by id. Used by re-import/merge. */
+  updateBooks: (patches: { id: string; patch: Partial<Book> }[]) => void;
   /** Bulk-add books from a Goodreads/StoryGraph import; returns them with ids. */
   importBooks: (
     books: (Omit<Book, "id" | "addedAt"> & { addedAt?: string })[]
@@ -127,6 +129,20 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setData((d) => ({ ...d, books: [full, ...d.books] }));
     return full;
   }, []);
+
+  const updateBooks = useCallback(
+    (patches: { id: string; patch: Partial<Book> }[]) => {
+      if (patches.length === 0) return;
+      const byId = new Map(patches.map((p) => [p.id, p.patch]));
+      setData((d) => ({
+        ...d,
+        books: d.books.map((b) =>
+          byId.has(b.id) ? { ...b, ...byId.get(b.id)! } : b
+        ),
+      }));
+    },
+    []
+  );
 
   const updateBook = useCallback((id: string, patch: Partial<Book>) => {
     setData((d) => ({
@@ -207,6 +223,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         setSeriesPlanned,
         importData,
         importBooks,
+        updateBooks,
       }}
     >
       {children}

@@ -8,17 +8,19 @@ import Link from "next/link";
 import { useStore } from "@/lib/store";
 import { parseLibraryCsv, type ImportSummary } from "@/lib/csv-import";
 import { backfillCovers } from "@/lib/cover-backfill";
-import { STATUS_LABELS, type BookStatus } from "@/lib/types";
+import { bookKey } from "@/lib/title-clean";
+import { STATUS_LABELS, type Book, type BookStatus } from "@/lib/types";
 
 export default function ImportPage() {
-  const { ready, data, importBooks, updateBook } = useStore();
+  const { ready, data, importBooks, updateBook, updateBooks } = useStore();
   const [covers, setCovers] = useState<{ done: number; total: number } | null>(
     null
   );
   const [summary, setSummary] = useState<ImportSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<number | null>(null);
-  const [skipDuplicates, setSkipDuplicates] = useState(true);
+  const [mergeExisting, setMergeExisting] = useState(true);
+  const [repaired, setRepaired] = useState(0);
   const [pasteMode, setPasteMode] = useState(false);
   const [pasted, setPasted] = useState("");
   const fileInput = useRef<HTMLInputElement>(null);
@@ -41,15 +43,52 @@ export default function ImportPage() {
 
   async function runImport() {
     if (!summary) return;
-    const existing = new Set(
-      data.books.map((b) => `${b.title.toLowerCase()}|${b.author.toLowerCase()}`)
+
+    // Match on a normalised title+author so a book already in the library is
+    // repaired rather than duplicated — that's what makes re-importing safe.
+    const existing = new Map(
+      data.books.map((b) => [bookKey(b.title, b.author), b])
     );
 
-    const chosen = summary.books.filter((entry) => {
-      if (!skipDuplicates) return true;
-      const key = `${entry.book.title.toLowerCase()}|${entry.book.author.toLowerCase()}`;
-      return !existing.has(key);
-    });
+    const chosen: typeof summary.books = [];
+    const repairs: { id: string; patch: Partial<Book> }[] = [];
+
+    for (const entry of summary.books) {
+      const match = existing.get(bookKey(entry.book.title, entry.book.author));
+      if (!match) {
+        chosen.push(entry);
+        continue;
+      }
+      if (!mergeExisting) continue; // plain import: skip the duplicate
+
+      // Fill in what the first import got wrong or missed. Never overwrite
+      // something the reader has since set by hand.
+      const patch: Partial<Book> = {};
+      if (entry.book.addedAt && entry.book.addedAt !== match.addedAt) {
+        patch.addedAt = entry.book.addedAt;
+      }
+      if (entry.book.finishedAt && !match.finishedAt) {
+        patch.finishedAt = entry.book.finishedAt;
+      }
+      if (entry.book.rating && !match.rating) patch.rating = entry.book.rating;
+      if (entry.book.seriesName && !match.seriesName) {
+        patch.seriesName = entry.book.seriesName;
+        patch.seriesNumber = entry.book.seriesNumber;
+      }
+      if (entry.book.totalPages && !match.totalPages) {
+        patch.totalPages = entry.book.totalPages;
+      }
+      if (entry.book.tags?.length && !match.tags?.length) {
+        patch.tags = entry.book.tags;
+      }
+      // Strip the "(Series, #1)" suffix off titles imported before the fix
+      if (entry.book.title !== match.title) patch.title = entry.book.title;
+
+      if (Object.keys(patch).length > 0) repairs.push({ id: match.id, patch });
+    }
+
+    if (repairs.length > 0) updateBooks(repairs);
+    setRepaired(repairs.length);
 
     // Books land instantly; covers stream in afterwards
     const added = importBooks(chosen.map((e) => e.book));
@@ -58,12 +97,26 @@ export default function ImportPage() {
 
     // Every book gets a shot at a cover: by ISBN where we have one, by title
     // and author for the many Goodreads rows that carry no ISBN at all.
-    const targets = added.map((book, i) => ({
-      id: book.id,
-      isbn: chosen[i]?.isbn,
-      title: book.title,
-      author: book.author,
-    }));
+    // Books repaired above are included if they're still missing art.
+    const isbnByKey = new Map(
+      summary.books.map((e) => [bookKey(e.book.title, e.book.author), e.isbn])
+    );
+    const targets = [
+      ...added.map((book, i) => ({
+        id: book.id,
+        isbn: chosen[i]?.isbn,
+        title: book.title,
+        author: book.author,
+      })),
+      ...data.books
+        .filter((b) => !b.coverUrl)
+        .map((b) => ({
+          id: b.id,
+          isbn: isbnByKey.get(bookKey(b.title, b.author)),
+          title: b.title,
+          author: b.author,
+        })),
+    ];
     if (targets.length === 0) return;
 
     setCovers({ done: 0, total: targets.length });
@@ -97,7 +150,11 @@ export default function ImportPage() {
         <div className="rounded-2xl border border-accent/40 bg-accent-soft/40 p-6 text-center">
           <p className="text-4xl">📚</p>
           <p className="mt-2 font-display text-xl font-semibold">
-            {done} book{done === 1 ? "" : "s"} imported!
+            {done > 0 && `${done} book${done === 1 ? "" : "s"} imported`}
+            {done > 0 && repaired > 0 && ", "}
+            {repaired > 0 && `${repaired} repaired`}
+            {done === 0 && repaired === 0 && "Everything was already up to date"}
+            {(done > 0 || repaired > 0) && "!"}
           </p>
           {covers ? (
             <>
@@ -161,14 +218,23 @@ export default function ImportPage() {
             </p>
           )}
 
-          <label className="flex items-center gap-2 text-sm text-ink-muted">
+          <label className="flex items-start gap-2 text-sm text-ink-muted">
             <input
               type="checkbox"
-              checked={skipDuplicates}
-              onChange={(e) => setSkipDuplicates(e.target.checked)}
-              className="h-4 w-4 accent-[var(--accent)]"
+              checked={mergeExisting}
+              onChange={(e) => setMergeExisting(e.target.checked)}
+              className="mt-0.5 h-4 w-4 accent-[var(--accent)]"
             />
-            Skip books already in my library
+            <span>
+              <span className="font-medium text-ink">
+                Repair books I already have
+              </span>
+              <span className="block text-xs">
+                Fills in missing dates, ratings, series and covers on books
+                from an earlier import — no duplicates, and nothing you&apos;ve
+                edited by hand gets overwritten.
+              </span>
+            </span>
           </label>
 
           <ul className="max-h-56 divide-y divide-line overflow-y-auto rounded-xl border border-line">
