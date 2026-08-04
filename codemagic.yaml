@@ -38,16 +38,33 @@ workflows:
           # Instead reuse ONE key, stored in Codemagic as the secure env var
           # CERTIFICATE_PRIVATE_KEY — the same certificate gets reused forever.
           if [ -n "$CERTIFICATE_PRIVATE_KEY" ]; then
-            # Pasting a multi-line PEM into a web form tends to mangle the
-            # line breaks, so the key is stored base64-encoded (one safe
-            # line). Raw PEM still works if it survived the paste.
-            if printf '%s' "$CERTIFICATE_PRIVATE_KEY" | base64 --decode 2>/dev/null | grep -q "PRIVATE KEY"; then
-              echo "Using the saved signing key (base64)"
-              printf '%s' "$CERTIFICATE_PRIVATE_KEY" | base64 --decode > /tmp/dist_cert_key.pem
-            else
-              echo "Using the saved signing key (raw PEM)"
-              printf '%s' "$CERTIFICATE_PRIVATE_KEY" > /tmp/dist_cert_key.pem
+            # Accept the saved key in whatever shape it survived the web form:
+            # base64-encoded, clean PEM, or a PEM whose newlines got flattened
+            # (the usual damage when pasting into a browser field).
+            python3 - > /tmp/dist_cert_key.pem <<'PYEOF'
+          import base64, os, re, sys, textwrap
+          raw = os.environ["CERTIFICATE_PRIVATE_KEY"].strip()
+          try:
+              decoded = base64.b64decode(raw, validate=True).decode()
+              if "PRIVATE KEY" in decoded:
+                  print(decoded.strip())
+                  sys.exit(0)
+          except Exception:
+              pass
+          m = re.search(r"-----BEGIN ([A-Z ]*PRIVATE KEY)-----(.*?)-----END \1-----", raw, re.S)
+          if not m:
+              sys.exit("CERTIFICATE_PRIVATE_KEY does not contain a PEM private key")
+          label, body = m.group(1), re.sub(r"\s+", "", m.group(2))
+          print(f"-----BEGIN {label}-----")
+          print("\n".join(textwrap.wrap(body, 64)))
+          print(f"-----END {label}-----")
+          PYEOF
+            # Apple's tooling wants PKCS#1 ("BEGIN RSA PRIVATE KEY")
+            if grep -q "BEGIN PRIVATE KEY" /tmp/dist_cert_key.pem; then
+              openssl rsa -in /tmp/dist_cert_key.pem -traditional -out /tmp/dist_cert_key_p1.pem
+              mv /tmp/dist_cert_key_p1.pem /tmp/dist_cert_key.pem
             fi
+            echo "Signing key restored as: $(head -1 /tmp/dist_cert_key.pem)"
             # Fail loudly here rather than deep inside the Apple API call
             openssl rsa -in /tmp/dist_cert_key.pem -check -noout
           else
