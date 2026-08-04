@@ -7,6 +7,7 @@ import { SITE } from "@/lib/site";
 import { RavenMark, WrenMark } from "@/components/WrenArt";
 import { EMPTY_DATA, type AppData } from "@/lib/types";
 import { NotificationSettings } from "@/components/NotificationSettings";
+import { FindCovers } from "@/components/FindCovers";
 
 const MODES: { value: ThemePref; label: string; hint: string }[] = [
   { value: "auto", label: "Auto", hint: "Wren by day, Raven 7 PM – 7 AM" },
@@ -98,6 +99,8 @@ export default function SettingsPage() {
       </section>
 
       <NotificationSettings />
+
+      <FindCovers />
 
       {/* Goals */}
       <section className="rounded-2xl border border-line bg-surface p-5">

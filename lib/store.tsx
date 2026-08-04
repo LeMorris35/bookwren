@@ -62,7 +62,9 @@ interface StoreValue {
   /** Replace everything with a restored backup. */
   importData: (data: AppData) => void;
   /** Bulk-add books from a Goodreads/StoryGraph import; returns them with ids. */
-  importBooks: (books: Omit<Book, "id" | "addedAt">[]) => Book[];
+  importBooks: (
+    books: (Omit<Book, "id" | "addedAt"> & { addedAt?: string })[]
+  ) => Book[];
 }
 
 const StoreContext = createContext<StoreValue | null>(null);
@@ -174,12 +176,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const importBooks = useCallback(
-    (incoming: Omit<Book, "id" | "addedAt">[]): Book[] => {
+    (
+      incoming: (Omit<Book, "id" | "addedAt"> & { addedAt?: string })[]
+    ): Book[] => {
       const now = new Date().toISOString();
       const full: Book[] = incoming.map((b) => ({
         ...b,
         id: newId(),
-        addedAt: now,
+        // Imports carry their original "date added" so the shelf keeps the
+        // order it had in the other app.
+        addedAt: b.addedAt ?? now,
       }));
       setData((d) => ({ ...d, books: [...full, ...d.books] }));
       return full;

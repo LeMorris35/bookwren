@@ -121,7 +121,8 @@ const FORMAT_WORDS: Record<string, BookFormat> = {
 };
 
 export interface ImportedBook {
-  book: Omit<Book, "id" | "addedAt">;
+  /** addedAt comes from the export's "Date Added" so shelf order matches. */
+  book: Omit<Book, "id" | "addedAt"> & { addedAt?: string };
   isbn?: string;
   /** True when we could not tell when they finished it. */
   missingDate: boolean;
@@ -237,6 +238,11 @@ export function parseLibraryCsv(text: string): ImportSummary {
         : undefined;
     if (status === "finished" && !finishedAt) status = "finished";
 
+    // Keep the shelf in the same order it had on Goodreads/StoryGraph.
+    // Without this every book lands with today's timestamp and the whole
+    // library sorts by CSV row order instead.
+    const addedOn = parseDate(get(col.dateAdded));
+
     books.push({
       book: {
         title: title.slice(0, 300),
@@ -247,6 +253,9 @@ export function parseLibraryCsv(text: string): ImportSummary {
         rating,
         tags: tags.length > 0 ? tags : undefined,
         finishedAt,
+        addedAt: addedOn
+          ? new Date(`${addedOn}T12:00:00`).toISOString()
+          : undefined,
       },
       isbn: cleanIsbn(get(col.isbn)) || undefined,
       missingDate,

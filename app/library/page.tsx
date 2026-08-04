@@ -8,6 +8,16 @@ import { STATUS_LABELS, type Book, type BookStatus } from "@/lib/types";
 import { formatMinutes } from "@/lib/dates";
 import { tagDot } from "@/lib/tag-colors";
 
+type SortKey = "added" | "title" | "author" | "rating" | "finished";
+
+const SORTS: [SortKey, string][] = [
+  ["added", "Recently added"],
+  ["title", "Title A–Z"],
+  ["author", "Author A–Z"],
+  ["rating", "Highest rated"],
+  ["finished", "Recently finished"],
+];
+
 const TABS: (BookStatus | "all" | "series")[] = [
   "reading",
   "want",
@@ -21,6 +31,8 @@ export default function LibraryPage() {
   const { ready, data } = useStore();
   const [tab, setTab] = useState<BookStatus | "all" | "series">("reading");
   const [tagFilter, setTagFilter] = useState<string | null>(null);
+  const [sort, setSort] = useState<SortKey>("added");
+  const [search, setSearch] = useState("");
 
   if (!ready) return null;
 
@@ -37,9 +49,36 @@ export default function LibraryPage() {
     tab === "all" || tab === "series"
       ? data.books
       : data.books.filter((b) => b.status === tab);
-  const books = tagFilter
+  const tagged = tagFilter
     ? byStatus.filter((b) => b.tags?.includes(tagFilter))
     : byStatus;
+
+  // Title/author search — essential once a library runs to four figures
+  const needle = search.trim().toLowerCase();
+  const matched = needle
+    ? tagged.filter(
+        (b) =>
+          b.title.toLowerCase().includes(needle) ||
+          b.author.toLowerCase().includes(needle)
+      )
+    : tagged;
+
+  const books = [...matched].sort((a, b) => {
+    switch (sort) {
+      case "title":
+        return a.title.localeCompare(b.title);
+      case "author":
+        return a.author.localeCompare(b.author) || a.title.localeCompare(b.title);
+      case "rating":
+        return (b.rating ?? 0) - (a.rating ?? 0);
+      case "finished":
+        return (b.finishedAt ?? "").localeCompare(a.finishedAt ?? "");
+      case "added":
+      default:
+        // Newest first, matching how the other apps show a shelf
+        return (b.addedAt ?? "").localeCompare(a.addedAt ?? "");
+    }
+  });
   const count = (t: BookStatus | "all" | "series") =>
     t === "all"
       ? data.books.length
@@ -84,6 +123,31 @@ export default function LibraryPage() {
           </button>
         ))}
       </div>
+
+      {/* Search + sort — earns its place once a shelf gets big */}
+      {tab !== "series" && data.books.length > 12 && (
+        <div className="mb-4 flex flex-wrap gap-2">
+          <input
+            type="search"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search your library…"
+            className="min-w-0 flex-1 rounded-full border border-line bg-surface px-4 py-2 text-sm outline-none focus:border-accent"
+          />
+          <select
+            value={sort}
+            onChange={(e) => setSort(e.target.value as SortKey)}
+            aria-label="Sort books"
+            className="shrink-0 rounded-full border border-line bg-surface px-3 py-2 text-sm"
+          >
+            {SORTS.map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
 
       {/* Category filter — appears once any book has categories */}
       {allTags.length > 0 && tab !== "series" && (

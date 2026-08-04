@@ -56,9 +56,14 @@ export default function ImportPage() {
     setDone(added.length);
     setSummary(null);
 
-    const targets = added
-      .map((book, i) => ({ id: book.id, isbn: chosen[i]?.isbn ?? "" }))
-      .filter((t) => t.isbn);
+    // Every book gets a shot at a cover: by ISBN where we have one, by title
+    // and author for the many Goodreads rows that carry no ISBN at all.
+    const targets = added.map((book, i) => ({
+      id: book.id,
+      isbn: chosen[i]?.isbn,
+      title: book.title,
+      author: book.author,
+    }));
     if (targets.length === 0) return;
 
     setCovers({ done: 0, total: targets.length });
@@ -97,7 +102,8 @@ export default function ImportPage() {
           {covers ? (
             <>
               <p className="mt-1 text-sm text-ink-muted">
-                Finding covers… {covers.done} of {covers.total}
+                Finding covers… {covers.done} of {covers.total}. Leave this open
+                — you can browse in another tab.
               </p>
               <div className="mx-auto mt-2 h-2 w-48 overflow-hidden rounded-full bg-chart-track">
                 <div
