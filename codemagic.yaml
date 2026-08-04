@@ -70,6 +70,18 @@ workflows:
               emit(m.group(1), re.sub(r"\s+", "", m.group(2)))
               sys.exit(0)
 
+          # 3) Just the base64 body, with the BEGIN/END lines lost in the copy.
+          #    Decode to DER and put the right wrapper back on.
+          try:
+              der = base64.b64decode(compact + "=" * (-len(compact) % 4))
+          except (binascii.Error, ValueError):
+              der = b""
+          if der[:1] == b"\x30":  # an ASN.1 SEQUENCE, so a DER-encoded key
+              # PKCS#8 carries the rsaEncryption OID; PKCS#1 doesn't.
+              is_pkcs8 = b"\x2a\x86\x48\x86\xf7\x0d\x01\x01\x01" in der[:64]
+              emit("PRIVATE KEY" if is_pkcs8 else "RSA PRIVATE KEY", compact)
+              sys.exit(0)
+
           sys.exit(
               "CERTIFICATE_PRIVATE_KEY is not a PEM private key or base64 of one "
               f"(got {len(raw)} chars starting with {raw[:24]!r})"
