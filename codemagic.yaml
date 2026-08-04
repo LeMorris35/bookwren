@@ -14,10 +14,9 @@ workflows:
       xcode: latest
       vars:
         BUNDLE_ID: "com.lammedia.bookwren"
-        # Apple's numeric app id from App Store Connect (App Information ->
-        # General Information -> Apple ID). Fill this in after creating the
-        # app; until then the build number just starts at 1.
-        APP_STORE_APP_ID: ""
+        # Apple's numeric app id (App Store Connect -> App Information ->
+        # General Information -> Apple ID). Drives build-number increments.
+        APP_STORE_APP_ID: "6797727632"
     scripts:
       - name: Install npm dependencies
         script: npm ci
