@@ -51,15 +51,20 @@
 	<array>
 		<string>armv7</string>
 	</array>
-	<!-- Portrait only — the reading layout is built for one hand -->
+	<!-- iPhone: portrait only, the reading layout is built for one hand. -->
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
 	</array>
+	<!-- iPad: Apple requires all four here, or the upload is rejected
+	     (error 90474 — iPad multitasking). The layout is responsive, so
+	     landscape is fine. -->
 	<key>UISupportedInterfaceOrientations~ipad</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
 		<string>UIInterfaceOrientationPortraitUpsideDown</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
