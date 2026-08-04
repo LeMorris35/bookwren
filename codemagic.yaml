@@ -12,6 +12,11 @@ workflows:
     environment:
       node: 22
       xcode: latest
+      groups:
+        # Codemagic UI -> Environment variables. Must hold
+        # CERTIFICATE_PRIVATE_KEY (marked Secure): the one reusable signing
+        # key, so we never mint a new Apple certificate per build.
+        - signing
       vars:
         BUNDLE_ID: "com.lammedia.bookwren"
         # Apple's numeric app id (App Store Connect -> App Information ->
