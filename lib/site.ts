@@ -4,7 +4,9 @@
 export const SITE = {
   /** App name. Change here to rename the whole app. */
   name: "BookWren",
-  tagline: "Track every minute you read. Free, forever.",
+  // Present tense only — never promise a price for all time. If BookWren
+  // ever earns money, nothing here has to be walked back.
+  tagline: "Track every minute you read.",
   description:
     "A free reading tracker. Log your books, time your reading sessions, keep your streak alive, and share your stats — no account needed.",
   /** Where the app will live once deployed. Update after deploying to Vercel. */

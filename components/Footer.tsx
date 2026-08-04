@@ -17,7 +17,7 @@ export function Footer() {
           : "The library is open. It usually is."}
       </p>
       <p className="mt-1.5 text-[11px] text-ink-faint">
-        {SITE.name} · free forever · your books stay on your device ·{" "}
+        {SITE.name} · no ads · your books stay on your device ·{" "}
         <a
           href={SITE.brand.url}
           target="_blank"

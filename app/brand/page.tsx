@@ -142,7 +142,7 @@ const ASSETS: Asset[] = [
         ["#b45309", "Time your reading & keep your streak alive"],
         ["#0d9488", "Race friends in reading challenges"],
         ["#7c3aed", "Stats on pages, words, books & authors"],
-        ["#8e3b46", "Free forever — no account needed"],
+        ["#8e3b46", "Free to use — no account needed"],
       ];
       let y = 740;
       for (const [dot, text] of items) {

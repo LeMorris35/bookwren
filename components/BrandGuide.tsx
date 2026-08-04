@@ -228,7 +228,7 @@ export function BrandGuide() {
 
 Track every minute you read, log the books you finish, and watch your streak grow. Add friends, race them in reading challenges, and send each other books you loved.
 
-No ads. No subscription. No account needed to start — your library lives on your own device.
+No ads. No account needed to start — your library lives on your own device.
 
 Made with love by LAM Media. ${SITE.url.replace("https://", "")}`}
           />
@@ -239,7 +239,7 @@ Made with love by LAM Media. ${SITE.url.replace("https://", "")}`}
 
 BookWren is a free reading tracker — log your books, time your reading sessions, and keep a streak going. You can add friends, start reading challenges, and see what everyone's reading.
 
-It's completely free, no account needed to try it, and it works right in your phone's browser.
+It's free to use, no account needed to try it, and it works right in your phone's browser.
 
 ${SITE.url.replace("https://", "")}`}
           />
@@ -310,13 +310,18 @@ Read together. Even when you're apart.`}
             <li>✅ Keep the bird&apos;s cocked-up tail — it&apos;s the logo</li>
             <li>✅ Warm, low, side-lit photos (a lamp, a window)</li>
             <li>✅ Cozy clutter: blankets, tea, stacked books</li>
-            <li>✅ Always include the link, always say free</li>
+            <li>✅ Always include the link</li>
+            <li>✅ Say “free to use” — present tense</li>
           </ul>
           <ul className="space-y-1.5 text-sm text-ink-muted">
             <li>🚫 Don&apos;t recolor the wren — russet or nothing</li>
             <li>🚫 Don&apos;t stretch or rotate the logo</li>
             <li>🚫 No cold greys, neon, or pure black backgrounds</li>
             <li>🚫 Don&apos;t crop the tail off the bird</li>
+            <li>
+              🚫 Never say “free forever”, “no subscription ever”, or promise a
+              price for all time — it boxes us in later
+            </li>
           </ul>
         </div>
       </section>
@@ -343,7 +348,7 @@ Read together. Even when you're apart.`}
           </div>
           <div className="flex justify-between gap-3">
             <dt className="text-ink-muted">Price</dt>
-            <dd className="font-medium">Free — no ads, no subscription</dd>
+            <dd className="font-medium">Free to use · no ads</dd>
           </div>
         </dl>
       </section>
