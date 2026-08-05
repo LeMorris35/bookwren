@@ -30,8 +30,15 @@ workflows:
         # so the shipped icon can never drift from the brand art.
         script: npx @capacitor/assets generate --ios
       - name: Sync Capacitor iOS
-        # Installs CocoaPods and copies the native config/plugins.
-        script: npx cap sync ios
+        script: |
+          set -e
+          npx cap sync ios
+          # Package.swift is committed from a Windows machine, where the
+          # Capacitor CLI writes backslash paths that SwiftPM on macOS can't
+          # resolve. Normalise them before building.
+          sed -i '' 's#\\\\#/#g' ios/App/CapApp-SPM/Package.swift || true
+          echo "--- Package.swift the build will use ---"
+          cat ios/App/CapApp-SPM/Package.swift
       - name: Create signing certificate + profile
         script: |
           set -ex
@@ -121,10 +128,19 @@ workflows:
           fi
           BUILD_NUMBER=$(( LATEST + 1 ))
           echo "Latest uploaded build was $LATEST; using build number $BUILD_NUMBER"
-          xcode-project build-ipa \
+          # Xcode's exit 65 tells you nothing on its own, so surface the real
+          # error lines if the archive fails.
+          if ! xcode-project build-ipa \
             --project "ios/App/App.xcodeproj" \
             --scheme "App" \
-            --archive-flags="CURRENT_PROJECT_VERSION=$BUILD_NUMBER"
+            --archive-flags="CURRENT_PROJECT_VERSION=$BUILD_NUMBER"; then
+            echo "===== ARCHIVE FAILED — actual errors ====="
+            grep -iE "error:|fatal|entitlement|provisioning|No such module|does not contain" \
+              /tmp/xcodebuild_*.log 2>/dev/null | tail -40 || true
+            echo "===== last 60 log lines ====="
+            tail -60 /tmp/xcodebuild_*.log 2>/dev/null || true
+            exit 1
+          fi
     artifacts:
       - build/ios/ipa/*.ipa
       - /tmp/xcodebuild_*.log
