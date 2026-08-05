@@ -81,12 +81,28 @@ async function main() {
 
   await db.syncedBook.deleteMany({ where: { userId: DEMO_ID } });
   await db.syncedSession.deleteMany({ where: { userId: DEMO_ID } });
+  // matchKey mirrors lib/title-clean.ts bookKey() — how the sync merge
+  // recognises the same book across devices.
+  const matchKeyFor = (title, author) =>
+    `${title.trim().toLowerCase()}|${author.trim().toLowerCase()}`
+      .replace(/[^a-z0-9|]+/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+  const now = new Date().toISOString();
+
   await db.syncedBook.createMany({
-    data: books.map(({ pages: _pages, ...b }) => ({ ...b, userId: DEMO_ID, finishedAt: b.finishedAt ?? null })),
+    data: books.map(({ pages: _pages, ...b }) => ({
+      ...b,
+      userId: DEMO_ID,
+      matchKey: matchKeyFor(b.title, b.author),
+      finishedAt: b.finishedAt ?? null,
+      addedAt: b.finishedAt ?? now,
+      updatedAt: now,
+    })),
   });
   const sessions = buildSessions();
   await db.syncedSession.createMany({
-    data: sessions.map((s) => ({ ...s, userId: DEMO_ID })),
+    data: sessions.map((s) => ({ ...s, userId: DEMO_ID, updatedAt: now })),
   });
 
   // Her challenge — join it with the invite code to see a live leaderboard

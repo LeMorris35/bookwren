@@ -9,6 +9,7 @@ import { RavenMark, WrenMark } from "@/components/WrenArt";
 import { EMPTY_DATA, type AppData } from "@/lib/types";
 import { NotificationSettings } from "@/components/NotificationSettings";
 import { FindCovers } from "@/components/FindCovers";
+import { SyncStatus } from "@/components/SyncStatus";
 
 const MODES: { value: ThemePref; label: string; hint: string }[] = [
   { value: "auto", label: "Auto", hint: "Wren by day, Raven 7 PM – 7 AM" },
@@ -153,6 +154,8 @@ export default function SettingsPage() {
           {data.sessions.length === 1 ? "" : "s"} · stored on this device
         </p>
       </div>
+
+      <SyncStatus />
 
       {/* Import & repair */}
       <section className="rounded-2xl border border-line bg-surface p-5">

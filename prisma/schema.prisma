@@ -44,21 +44,51 @@ model Friendship {
   @@unique([requesterId, addresseeId])
 }
 
-// Mirror of a signed-in user's local library, pushed up by the sync endpoint.
+// The canonical copy of a signed-in reader's library. Every device merges
+// into this, so a phone and a laptop converge instead of overwriting.
 model SyncedBook {
   id         String  @id @default(cuid())
   userId     String
-  clientId   String // the book's id in the user's browser store
+  clientId   String // the book's id on the device that first created it
+  /** Normalised "title|author" — how the same book is recognised across devices. */
+  matchKey   String
   title      String
   author     String
   coverUrl   String?
   format     String // physical | ebook | audiobook
   status     String // want | reading | finished | dnf
   finishedAt String? // ISO timestamp
+  rating     Int?
+  review     String?
+  totalPages Int?
+  seriesName String?
+  seriesNumber Int?
+  tags       String? // JSON array
+  addedAt    String?
+  /** Last edit, from the device clock. Newer wins on merge. */
+  updatedAt  String
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([userId, clientId])
+  @@unique([userId, matchKey])
+  @@index([userId, clientId])
+}
+
+/**
+ * Deleting on one device must not be undone by another device syncing an
+ * older copy, so deletions are recorded rather than just applied.
+ */
+model SyncDeletion {
+  id        String @id @default(cuid())
+  userId    String
+  /** "book" | "session" */
+  kind      String
+  /** matchKey for books, clientId for sessions. */
+  key       String
+  deletedAt String
+
+  @@unique([userId, kind, key])
+  @@index([userId])
 }
 
 model SyncedSession {
@@ -69,6 +99,8 @@ model SyncedSession {
   date         String // YYYY-MM-DD in the reader's local timezone
   minutes      Int
   pagesRead    Int    @default(0)
+  endPage      Int?
+  updatedAt    String @default("")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 

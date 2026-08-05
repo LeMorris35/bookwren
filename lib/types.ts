@@ -27,6 +27,8 @@ export interface Book {
   tags?: string[];
   /** ISO timestamp when the book was added. */
   addedAt: string;
+  /** Last edit on any device. Newer wins when two devices disagree. */
+  updatedAt?: string;
   /** ISO timestamp when marked finished. */
   finishedAt?: string;
   /** Rating out of 5 stars, set when finished. */
@@ -54,6 +56,19 @@ export interface ReadingSession {
   pagesRead?: number;
   note?: string;
   createdAt: string;
+  /** Last edit on any device. Newer wins when two devices disagree. */
+  updatedAt?: string;
+}
+
+/**
+ * A record of something deleted, so syncing an older device can't resurrect
+ * it. Kept locally and on the server.
+ */
+export interface Deletion {
+  kind: "book" | "session";
+  /** Normalised title|author for books, the session id for sessions. */
+  key: string;
+  deletedAt: string;
 }
 
 export interface Settings {
@@ -70,6 +85,10 @@ export interface AppData {
   settings: Settings;
   /** Metadata for reader-created series (keyed by name in books). */
   series?: SeriesMeta[];
+  /** Tombstones, so deletes survive a sync from an older device. */
+  deletions?: Deletion[];
+  /** When this device last merged with the server. */
+  lastSyncedAt?: string;
 }
 
 export const DEFAULT_SETTINGS: Settings = {

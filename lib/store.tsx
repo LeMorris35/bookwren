@@ -18,9 +18,13 @@ import {
   EMPTY_DATA,
   type AppData,
   type Book,
+  type Deletion,
   type ReadingSession,
   type Settings,
 } from "./types";
+import { bookKey } from "./title-clean";
+
+export type SyncState = "idle" | "syncing" | "synced" | "error";
 
 const STORAGE_KEY = "shelfmark-data-v1";
 
@@ -67,6 +71,10 @@ interface StoreValue {
   importBooks: (
     books: (Omit<Book, "id" | "addedAt"> & { addedAt?: string })[]
   ) => Book[];
+  /** Where this device stands with the server. */
+  syncState: SyncState;
+  /** Force a merge now (used by the Settings button). */
+  syncNow: () => Promise<void>;
 }
 
 const StoreContext = createContext<StoreValue | null>(null);
@@ -75,6 +83,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [data, setData] = useState<AppData>(EMPTY_DATA);
   const [ready, setReady] = useState(false);
   const hydrated = useRef(false);
+  // Always-current snapshot, so sync() never sends a stale closure's data
+  const latest = useRef<AppData>(EMPTY_DATA);
+  latest.current = data;
 
   useEffect(() => {
     setData(loadData());
@@ -91,18 +102,27 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     }
   }, [data]);
 
-  // Signed in? Mirror the library to the server (debounced) so friends can
-  // see stats and challenges can count progress. Local data stays the source
-  // of truth; a failed sync just retries on the next change.
+  /**
+   * Two-way sync. Every signed-in device sends its whole library and adopts
+   * the merged answer, so a phone and a laptop converge instead of one
+   * overwriting the other.
+   */
   const { isSignedIn } = useAuth();
-  useEffect(() => {
-    if (!isSignedIn || !hydrated.current) return;
-    const t = setTimeout(() => {
-      fetch("/api/sync", {
+  const [syncState, setSyncState] = useState<SyncState>("idle");
+  const syncing = useRef(false);
+  const adopting = useRef(false);
+
+  const sync = useCallback(async (): Promise<void> => {
+    if (!isSignedIn || !hydrated.current || syncing.current) return;
+    syncing.current = true;
+    setSyncState("syncing");
+    try {
+      const snapshot = latest.current;
+      const res = await fetch("/api/sync", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          books: data.books.map((b) => ({
+          books: snapshot.books.map((b) => ({
             clientId: b.id,
             title: b.title,
             author: b.author,
@@ -110,22 +130,70 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             format: b.format,
             status: b.status,
             finishedAt: b.finishedAt,
+            rating: b.rating,
+            review: b.review,
+            totalPages: b.totalPages,
+            seriesName: b.seriesName,
+            seriesNumber: b.seriesNumber,
+            tags: b.tags,
+            addedAt: b.addedAt,
+            updatedAt: b.updatedAt ?? b.addedAt,
           })),
-          sessions: data.sessions.map((s) => ({
+          sessions: snapshot.sessions.map((s) => ({
             clientId: s.id,
             bookClientId: s.bookId,
             date: s.date,
             minutes: s.minutes,
             pagesRead: s.pagesRead ?? 0,
+            endPage: s.endPage,
+            updatedAt: s.updatedAt ?? s.createdAt,
           })),
+          deletions: snapshot.deletions ?? [],
         }),
-      }).catch(() => {});
-    }, 1500);
+      });
+      if (!res.ok) throw new Error(String(res.status));
+      const merged = await res.json();
+
+      // Adopt the merged snapshot. The flag stops this write from being
+      // mistaken for a local edit and kicking off another sync.
+      adopting.current = true;
+      setData((d) => ({
+        ...d,
+        books: merged.books,
+        sessions: merged.sessions,
+        deletions: merged.deletions,
+        lastSyncedAt: merged.syncedAt,
+      }));
+      setSyncState("synced");
+    } catch {
+      setSyncState("error");
+    } finally {
+      syncing.current = false;
+    }
+  }, [isSignedIn]);
+
+  // Sync on sign-in, when the tab regains focus, and shortly after any edit
+  useEffect(() => {
+    if (!isSignedIn || !ready) return;
+    sync();
+    const onFocus = () => sync();
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, [isSignedIn, ready, sync]);
+
+  useEffect(() => {
+    if (!isSignedIn || !hydrated.current) return;
+    if (adopting.current) {
+      adopting.current = false;
+      return;
+    }
+    const t = setTimeout(() => sync(), 1500);
     return () => clearTimeout(t);
-  }, [data, isSignedIn]);
+  }, [data, isSignedIn, sync]);
 
   const addBook = useCallback((book: Omit<Book, "id" | "addedAt">): Book => {
-    const full: Book = { ...book, id: newId(), addedAt: new Date().toISOString() };
+    const now = new Date().toISOString();
+    const full: Book = { ...book, id: newId(), addedAt: now, updatedAt: now };
     setData((d) => ({ ...d, books: [full, ...d.books] }));
     return full;
   }, []);
@@ -133,11 +201,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const updateBooks = useCallback(
     (patches: { id: string; patch: Partial<Book> }[]) => {
       if (patches.length === 0) return;
+      const now = new Date().toISOString();
       const byId = new Map(patches.map((p) => [p.id, p.patch]));
       setData((d) => ({
         ...d,
         books: d.books.map((b) =>
-          byId.has(b.id) ? { ...b, ...byId.get(b.id)! } : b
+          byId.has(b.id) ? { ...b, ...byId.get(b.id)!, updatedAt: now } : b
         ),
       }));
     },
@@ -145,26 +214,55 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   );
 
   const updateBook = useCallback((id: string, patch: Partial<Book>) => {
+    const now = new Date().toISOString();
     setData((d) => ({
       ...d,
-      books: d.books.map((b) => (b.id === id ? { ...b, ...patch } : b)),
+      books: d.books.map((b) =>
+        b.id === id ? { ...b, ...patch, updatedAt: now } : b
+      ),
     }));
   }, []);
 
   const deleteBook = useCallback((id: string) => {
-    setData((d) => ({
-      ...d,
-      books: d.books.filter((b) => b.id !== id),
-      sessions: d.sessions.filter((s) => s.bookId !== id),
-    }));
+    const now = new Date().toISOString();
+    setData((d) => {
+      const book = d.books.find((b) => b.id === id);
+      const goneSessions = d.sessions.filter((s) => s.bookId === id);
+      // Tombstones, so another device can't sync this book back to life
+      const deletions: Deletion[] = [
+        ...(d.deletions ?? []),
+        ...(book
+          ? [
+              {
+                kind: "book" as const,
+                key: bookKey(book.title, book.author),
+                deletedAt: now,
+              },
+            ]
+          : []),
+        ...goneSessions.map((s) => ({
+          kind: "session" as const,
+          key: s.id,
+          deletedAt: now,
+        })),
+      ];
+      return {
+        ...d,
+        books: d.books.filter((b) => b.id !== id),
+        sessions: d.sessions.filter((s) => s.bookId !== id),
+        deletions,
+      };
+    });
   }, []);
 
   const addSession = useCallback(
     (session: Omit<ReadingSession, "id" | "createdAt">) => {
+      const now = new Date().toISOString();
       const full: ReadingSession = {
         ...session,
         id: newId(),
-        createdAt: new Date().toISOString(),
+        createdAt: now,
+        updatedAt: now,
       };
       setData((d) => ({ ...d, sessions: [full, ...d.sessions] }));
     },
@@ -172,7 +270,15 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   );
 
   const deleteSession = useCallback((id: string) => {
-    setData((d) => ({ ...d, sessions: d.sessions.filter((s) => s.id !== id) }));
+    const now = new Date().toISOString();
+    setData((d) => ({
+      ...d,
+      sessions: d.sessions.filter((s) => s.id !== id),
+      deletions: [
+        ...(d.deletions ?? []),
+        { kind: "session" as const, key: id, deletedAt: now },
+      ],
+    }));
   }, []);
 
   const updateSettings = useCallback((patch: Partial<Settings>) => {
@@ -224,6 +330,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         importData,
         importBooks,
         updateBooks,
+        syncState,
+        syncNow: sync,
       }}
     >
       {children}
