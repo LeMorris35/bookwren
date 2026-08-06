@@ -155,16 +155,28 @@ html.theme-shifting *::after {
   color: var(--accent-ink) !important;
 }
 
-/* ── Native iOS app only (data-native is set by NativeShell) ────────
-   The web version keeps its normal browser behaviour. */
-
-/* Clear the notch and the home indicator */
-html[data-native="true"] header {
+/* ── Safe areas ──────────────────────────────────────────────────
+   Applied unconditionally, NOT gated on the native flag: on the web
+   env(safe-area-inset-*) is 0px, so this costs nothing there, and it
+   can't break when JS detection is slow or fails. Requires
+   viewportFit: "cover" in the layout's viewport export. */
+header {
   padding-top: env(safe-area-inset-top);
 }
-html[data-native="true"] nav.fixed {
+nav.fixed {
   padding-bottom: env(safe-area-inset-bottom);
 }
+/* Landscape / rotated devices push the notch to a side */
+body {
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+/* Keep the last of the page clear of the bottom tab bar + home indicator */
+main {
+  padding-bottom: calc(6rem + env(safe-area-inset-bottom));
+}
+
+/* ── Native iOS app only (data-native is set by NativeShell) ──── */
 html[data-native="true"] body {
   /* no rubber-band bounce past the content */
   overscroll-behavior-y: none;

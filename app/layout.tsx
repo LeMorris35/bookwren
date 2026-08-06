@@ -38,9 +38,12 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
+  // Required for env(safe-area-inset-*) to report real values. Without it
+  // iOS reports 0 and the header hides under the camera / Dynamic Island.
+  viewportFit: "cover",
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: "#f6efe0" },
-    { media: "(prefers-color-scheme: dark)", color: "#101119" },
+    { media: "(prefers-color-scheme: dark)", color: "#12101c" },
   ],
 };
 
